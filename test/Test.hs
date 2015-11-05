@@ -34,16 +34,16 @@ maxIter = 1000
 convert :: Data Index -> Data Double
 convert i = i2f i / 128.0 - 1.0
 
-mandelbrot c = snd $
-               whileLoop (c,0) 
+mandelbrot c = whileLoop (c,0)
                 (\(z,i) -> magnitude z < 2 && i < maxIter)
                 (\(z,i) -> (z*z+c,i+1))
 
-colourScheme :: Data Index -> Data Word8
-colourScheme i = round (log (i2f i) / log (i2f maxIter) * 256.0 :: Data Double)
+colourScheme :: (a,Data Index) -> Data Word8
+colourScheme (_,i) = round (log (i2f i) / log (i2f maxIter) * 256.0 :: Data Double)
 
 mandel w = fromPush $ toPush $
-           quantizeC w w (complex (-2.0) (-1.5 :: Data Double)) (complex 1.0 1.5) $
+           quantizeC w w (complex (-2.0) (-1.5 :: Data Double))
+                         (complex 1.0 1.5) $
            fmap colourScheme $
            fmap mandelbrot $
            complexPlane
@@ -61,6 +61,23 @@ prog = do addInclude "<feldspar_c99.h>"
           newWindow "Display Image"
           imageShow "Display Image" foo
           waitKey 0
+          cap <- captureCam
+          while (return true) $ do
+            i <- queryFrame cap
+            (x,y) <- getDim i
+            c <- getChannels i
+            d <- getDepth i
+            printf "Dims: %d %d, Channel: %d, Depth: %d\n" x y (i2n c :: Data WordN) (i2n d :: Data WordN)
+            imageShow "DisplayImage" i
+            waitKey 1
+            return ()
+
+run = compileAndRun    ["-I/usr/local/include/opencv"
+                       ,"-I/usr/local/include/opencv2"
+                       ,"-L/usr/local/lib/"
+                       ]
+                       prog
+                       ["m","opencv_core","opencv_highgui"]
 
 main = compileAndCheck ["-I/usr/local/include/opencv"
                        ,"-I/usr/local/include/opencv2"
