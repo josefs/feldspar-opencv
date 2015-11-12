@@ -68,6 +68,8 @@ prog = do addInclude "<feldspar_c99.h>"
             c <- getChannels i
             d <- getDepth i
             printf "Dims: %d %d, Channel: %d, Depth: %d\n" x y (i2n c :: Data WordN) (i2n d :: Data WordN)
+--            arr <- getImageData i
+--            printf "Foo: %d\n" (fromZero (sum (arrToPull (Z :. (x*y)) arr)))
             imageShow "DisplayImage" i
             waitKey 1
             return ()

@@ -5,6 +5,7 @@ module Feldspar.OpenCV
   , Window
   , IplImage
   , importOpenCV
+  , getImageData
   )where
 
 import Feldspar
@@ -49,32 +50,32 @@ void loadImageCV(const char* filename, typename IplImage** image) {
 
 loadImage_ :: String -> IplImage -> Program ()
 loadImage_ f i = callProc "loadImageCV"
-                 [ StrArg f
-                 , ObjAddrArg $ unImg i
+                 [ strArg f
+                 , addr $ objArg $ unImg i
                  ]
 
 imageShow_ :: Window -> IplImage -> Program ()
 imageShow_ w a = callProc "cvShowImage"
-                 [ StrArg w
-                 , ObjArg $ unImg a
+                 [ strArg w
+                 , objArg $ unImg a
                  ]
 
 newWindow_ :: Window -> Program ()
 newWindow_  w = callProc "cvNamedWindow"
-                [ StrArg w 
-                , ValArg (1 :: Data IntN)
+                [ strArg w 
+                , valArg (1 :: Data IntN)
                 ]
 
 waitKey_ :: Int -> Program (Data IntN)
 waitKey_ w = callFun "cvWaitKey"
-             [ ValArg (value (fromIntegral w) :: Data IntN)]
+             [ valArg (value (fromIntegral w) :: Data IntN)]
 
 releaseImage_ :: IplImage -> Program ()
 releaseImage_ i = callProc "cvReleaseImage"
-                  [ ObjArg (unImg i) ]
+                  [ objArg (unImg i) ]
 
 getArr_ :: IplImage -> Program (Data [Word8])
-getArr_ i = callFun "getArrData" [ ObjArg (unImg i) ]
+getArr_ i = callFun "getArrData" [ objArg (unImg i) ]
 
 getArr_def =
   [cedecl|
@@ -91,31 +92,32 @@ setArr_ :: IplImage -> Data [Word8] -> Data IntN -> Program ()
 setArr_ i d s = do
   arr <- unsafeThawArr d
   callProc "cvSetData"
-                  [ObjArg (unImg i)
-                  ,ArrArg arr
-                  ,ValArg s
+                  [objArg (unImg i)
+                  ,arrArg arr
+                  ,valArg s
                   ]
 
 createImage_ :: Data IntN -> Data IntN -> Data IntN -> Data IntN
              -> Program IplImage
 createImage_ width height depth channels = do
-  size <- initUObject "cvSize" "CvSize" [ValArg width, ValArg height]
-  fmap IplImage $ initObject "cvCreateImage" "IplImage" [ObjArg size, ValArg depth, ValArg channels]
+  size <- initUObject "cvSize" "CvSize" [valArg width, valArg height]
+  fmap IplImage $ initObject "cvCreateImage" "IplImage"
+                    [objArg size, valArg depth, valArg channels]
 
 captureCam_ :: Program Capture
 captureCam_ = fmap Capture $
               initObject "cvCaptureFromCAM" "CvCapture"
-                         [ValArg (0 :: Data IntN)]
+                         [valArg (0 :: Data IntN)]
 
 queryFrame_ :: Capture -> Program IplImage
 queryFrame_ cap = fmap IplImage $
                   initObject "cvQueryFrame" "IplImage"
-                             [ObjArg (unCap cap)]
+                             [objArg (unCap cap)]
 
 getDim_ :: IplImage -> Program (Data Index, Data Index)
 getDim_ i = do dims <- newArr 2 :: Program (Arr Index Index)
                d <- callFun "cvGetDims"
-                      [ObjArg (unImg i),ArrArg dims] :: Program (Data IntN)
+                      [objArg (unImg i),arrArg dims] :: Program (Data IntN)
                x <- Feldspar.IO.getArr 1 dims
                y <- Feldspar.IO.getArr 0 dims
                return (x,y)
@@ -140,7 +142,7 @@ getChannels_def = [cedecl|
                   |]
 
 getChannels_ :: IplImage -> Program (Data IntN)
-getChannels_ image = callFun "getChannels" [ObjArg (unImg image)]
+getChannels_ image = callFun "getChannels" [objArg (unImg image)]
 
 getDepth_def = [cedecl|
                int getDepth(typename IplImage *image) {
@@ -149,7 +151,19 @@ getDepth_def = [cedecl|
                |]
 
 getDepth_ :: IplImage -> Program (Data IntN)
-getDepth_ image = callFun "getDepth" [ObjArg (unImg image)]
+getDepth_ image = callFun "getDepth" [objArg (unImg image)]
+
+getImageData :: IplImage -> Program (Data [Word8])
+getImageData image = do
+  (y,x) <- getDim_ image
+  arr   <- newArr (x*y)
+  callProc "cvGetRawData"
+    [objArg (unImg image)
+    ,addr $ arrArg arr
+    ,valArg (0 :: Data IntN) -- NULL
+    ,valArg (0 :: Data IntN) -- NULL
+    ]
+  freezeArr arr (x*y)
 
 -- getManifest :: IplImage -> Program (Manifest DIM2 RGB)
 
