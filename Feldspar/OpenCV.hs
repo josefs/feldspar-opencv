@@ -153,17 +153,21 @@ getDepth_def = [cedecl|
 getDepth_ :: IplImage -> Program (Data IntN)
 getDepth_ image = callFun "getDepth" [objArg (unImg image)]
 
-getImageData :: IplImage -> Program (Data [Word8])
+getImageData :: IplImage -> Program (Data [Word8], Data IntN)
 getImageData image = do
   (y,x) <- getDim_ image
-  arr   <- newArr (x*y)
+  d     <- getDepth_ image
+  arr   <- newArr_
+  step  <- newRef :: Program (Ref IntN)
   callProc "cvGetRawData"
     [objArg (unImg image)
     ,addr $ arrArg arr
-    ,valArg (0 :: Data IntN) -- NULL
+    ,refArg step
     ,valArg (0 :: Data IntN) -- NULL
     ]
-  freezeArr arr (x*y)
+  farr <- freezeArr arr (x*y*i2n d)
+  s <- getRef step
+  return (farr, s)
 
 -- getManifest :: IplImage -> Program (Manifest DIM2 RGB)
 
