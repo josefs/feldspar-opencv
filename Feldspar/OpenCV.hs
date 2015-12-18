@@ -34,6 +34,7 @@ data OpenCV = OpenCV
   , getDim      :: IplImage -> Program (Data Index,Data Index)
   , getChannels :: IplImage -> Program (Data IntN)
   , getDepth    :: IplImage -> Program (Data IntN)
+  , releaseImage:: IplImage -> Program ()
 
   , captureCam :: Program Capture
   , queryFrame :: Capture -> Program IplImage
@@ -69,11 +70,11 @@ newWindow_  w = callProc "cvNamedWindow"
 waitKey_ :: Int -> Program (Data IntN)
 waitKey_ w = callFun "cvWaitKey"
              [ valArg (value (fromIntegral w) :: Data IntN)]
-
+{-
 releaseImage_ :: IplImage -> Program ()
 releaseImage_ i = callProc "cvReleaseImage"
                   [ objArg (unImg i) ]
-
+-}
 getArr_ :: IplImage -> Program (Data [Word8])
 getArr_ i = callFun "getArrData" [ objArg (unImg i) ]
 
@@ -153,6 +154,9 @@ getDepth_def = [cedecl|
 getDepth_ :: IplImage -> Program (Data IntN)
 getDepth_ image = callFun "getDepth" [objArg (unImg image)]
 
+releaseImage_ :: IplImage -> Program ()
+releaseImage_ image = callProc "cvReleaseImage" [addr $ objArg (unImg image)]
+
 getImageData :: IplImage -> Program (Data [Word8], Data IntN)
 getImageData image = do
   (y,x) <- getDim_ image
@@ -191,6 +195,7 @@ importOpenCV = do
     getDim_
     getChannels_
     getDepth_
+    releaseImage_
 
     captureCam_
     queryFrame_
